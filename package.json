@@ -142,7 +142,7 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^3.0.1",
     "serve-favicon": "^2.5.0",
-    "swr": "^2.3.2",
+    "swr": "^2.3.3",
     "tail": "^2.2.6",
     "three": "^0.175.0",
     "tree-kill": "^1.2.2",
