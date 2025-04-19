@@ -173,7 +173,7 @@
     "cross-env": "^7.0.3",
     "css-loader": "^6.8.1",
     "css-minimizer-webpack-plugin": "^7.0.2",
-    "detect-port": "^1.5.1",
+    "detect-port": "^2.1.0",
     "electron": "^35.2.0",
     "electron-builder": "^24.6.4",
     "electron-devtools-installer": "^3.2.0",
