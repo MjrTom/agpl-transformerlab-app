@@ -107,7 +107,7 @@
     "@segment/analytics-next": "^1.80.0",
     "@uppy/core": "^4.4.4",
     "@uppy/dashboard": "^4.3.3",
-    "@uppy/drag-drop": "^3.0.3",
+    "@uppy/drag-drop": "^4.1.2",
     "@uppy/file-input": "^4.1.2",
     "@uppy/progress-bar": "^3.0.3",
     "@uppy/react": "^4.2.3",
