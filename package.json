@@ -165,7 +165,7 @@
     "@types/react-test-renderer": "^19.1.0",
     "@types/webpack-bundle-analyzer": "^4.6.0",
     "@typescript-eslint/eslint-plugin": "^8.30.1",
-    "@typescript-eslint/parser": "^8.30.1",
+    "@typescript-eslint/parser": "^8.31.0",
     "browserslist-config-erb": "^0.0.3",
     "chalk": "^5.4.1",
     "concurrently": "^9.1.2",
