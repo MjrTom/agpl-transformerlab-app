@@ -152,7 +152,7 @@
   "devDependencies": {
     "@electron/notarize": "^3.0.1",
     "@electron/rebuild": "^3.7.2",
-    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.16",
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.6.0",
     "@svgr/webpack": "^8.0.1",
     "@teamsupercell/typings-for-css-modules-loader": "^2.5.2",
     "@testing-library/jest-dom": "^6.6.3",
