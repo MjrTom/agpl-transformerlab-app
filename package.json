@@ -160,7 +160,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "22.14.1",
     "@types/react": "^18.2.8",
-    "@types/react-dom": "^19.1.2",
+    "@types/react-dom": "^19.1.5",
     "@types/react-sparklines": "^1.7.2",
     "@types/react-test-renderer": "^19.1.0",
     "@types/webpack-bundle-analyzer": "^4.6.0",
