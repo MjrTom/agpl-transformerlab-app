@@ -114,6 +114,7 @@ export default function MainAppPanel({
   experimentInfo,
   setExperimentId,
   experimentInfoMutate,
+  setLogsDrawerOpen = null,
 }) {
   const navigate = useNavigate();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
@@ -150,7 +151,12 @@ export default function MainAppPanel({
     'batched',
   ];
 
-  if (modelData && modelData !== 'null' && modelData !== 'undefined') {
+  if (
+    modelData &&
+    modelData !== 'null' &&
+    modelData !== 'undefined' &&
+    modelData !== 'FILE NOT FOUND'
+  ) {
     modelSupports = JSON.parse(modelData)?.supports || [
       'chat',
       'completion',
@@ -361,6 +367,7 @@ export default function MainAppPanel({
               experimentInfo={experimentInfo}
               setFoundation={setFoundation}
               setAdaptor={setAdaptor}
+              setLogsDrawerOpen={setLogsDrawerOpen}
             />
           }
         />
@@ -465,7 +472,12 @@ export default function MainAppPanel({
         />
         <Route
           path="/plugins"
-          element={<Plugins experimentInfo={experimentInfo} />}
+          element={
+            <Plugins
+              experimentInfo={experimentInfo}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
+          }
         />
         <Route
           path="/plugins/:pluginName"
@@ -484,7 +496,7 @@ export default function MainAppPanel({
         />
         <Route
           path="/zoo"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
         />
         <Route
           path="/zoo/local"
@@ -497,6 +509,10 @@ export default function MainAppPanel({
         <Route
           path="/zoo/store"
           element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+        />
+        <Route
+          path="/zoo/groups"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
         />
         <Route path="/data" element={<Data />} />
         <Route path="/computer" element={<Computer />} />

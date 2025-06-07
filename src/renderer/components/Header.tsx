@@ -19,6 +19,7 @@ import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
 import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
+import TinyAMDLogo from './Shared/TinyAMDLogo';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -86,6 +87,31 @@ function StatsBar({ connection, setConnection }) {
 
   function showGPU() {
     if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
+      // Check if mac_metrics and GPU data are available
+      if (server?.mac_metrics?.gpu_usage) {
+        const gpuPercent = server.mac_metrics.gpu_usage[1] * 100; // Convert to percentage
+
+        return (
+          <Stack gap={0} direction="row">
+            VRAM:
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.gpu}>
+                  <SparklinesLine color="var(--joy-palette-danger-500)" />
+                </Sparklines>
+              </div>
+              {Math.round(gpuPercent)}%
+            </div>{' '}
+            <span style={{ opacity: 0.6 }}>
+              <TinyMLXLogo />
+            </span>
+          </Stack>
+        );
+      }
+
+      // Fallback to just showing the MLX logo if no mac_metrics
       return (
         <span style={{ opacity: 0.6 }}>
           {' '}
@@ -122,9 +148,15 @@ function StatsBar({ connection, setConnection }) {
                 percent={Math.round(gpu?.utilization)}
               />
             ))}
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              {server?.device == 'cuda' && <TinyNVIDIALogo />}
-            </span>
+            {server?.device === 'cuda' && (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                {server?.device_type === 'nvidia' ? (
+                  <TinyNVIDIALogo />
+                ) : server?.device_type === 'amd' ? (
+                  <TinyAMDLogo />
+                ) : null}
+              </span>
+            )}
           </Stack>
         </span>
       </Tooltip>
@@ -169,7 +201,7 @@ function StatsBar({ connection, setConnection }) {
             opacity: 1,
             alignItems: 'center',
             justifyContent: 'right',
-            paddingRight: 20,
+            paddingRight: 1,
             paddingTop: 0,
             fontSize: 15,
             backgroundColor: 'var(--joy-palette-background-level1)',
@@ -183,16 +215,16 @@ function StatsBar({ connection, setConnection }) {
           &nbsp; Not Connected
         </div>
       ) : (
-        <div
-          style={{
-            display: 'flex',
+        <Box
+          sx={{
+            display: { xs: 'none', sm: 'none', md: 'flex' }, // Hide on everything below md
             height: '40px',
             padding: 0,
             margin: 0,
             opacity: 1,
             alignItems: 'center',
             justifyContent: 'right',
-            paddingRight: 20,
+            paddingRight: 1,
             paddingTop: 0,
             fontSize: 15,
             backgroundColor: 'var(--joy-palette-background-level1)',
@@ -297,7 +329,7 @@ function StatsBar({ connection, setConnection }) {
             </div>
             {showGPU()}
           </span>
-        </div>
+        </Box>
       )}
     </>
   );

@@ -4,13 +4,9 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
-  CogIcon,
-  EllipsisVerticalIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
-  UserPlusIcon,
-  XSquareIcon,
 } from 'lucide-react';
 import {
   FormControl,
@@ -25,12 +21,14 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
-  Sheet,
 } from '@mui/joy';
-import { useState, useEffect, MouseEvent, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
+import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import RecipesModal from './Recipes';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -60,7 +58,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
+              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
               setExperimentId(null);
             }
           }}
@@ -79,12 +77,15 @@ export default function SelectExperimentMenu({
 }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.GET_EXPERIMENTS_URL(),
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
   );
+
+  const DEV_MODE = experimentInfo?.name === 'dev';
 
   useEffect(() => {
     mutate();
@@ -94,6 +95,44 @@ export default function SelectExperimentMenu({
     setAnchorEl(null);
     setExperimentId(id);
   };
+
+  const createNewExperiment = useCallback(
+    async (name: string, fromRecipeId = null) => {
+      let newId = 0;
+
+      if (fromRecipeId === null) {
+        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+        newId = await response.json();
+      } else {
+        const response = await fetch(
+          getFullPath('recipes', ['createExperiment'], {
+            id: fromRecipeId,
+            experiment_name: name,
+          }),
+          {
+            method: 'POST',
+          },
+        );
+        const responseJson = await response.json();
+        if (!(responseJson?.status === 'success')) {
+          alert(
+            `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
+          );
+          return;
+        }
+        newId = responseJson?.data?.experiment_id;
+      }
+      setExperimentId(newId);
+      createHandleClose(newId);
+      mutate();
+
+      // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
+      if (fromRecipeId !== null && fromRecipeId !== -1) {
+        navigate('/experiment/notes');
+      }
+    },
+    [setExperimentId, mutate, navigate],
+  );
 
   return (
     <div>
@@ -183,9 +222,12 @@ export default function SelectExperimentMenu({
                   backgroundColor: 'transparent !important',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   paddingLeft: 1,
-                  paddingRight: 0,
+                  marginRight: 0.5,
                   minHeight: '22px',
                   height: '22px',
+                  overflow: 'hidden',
+                  justifyContent: 'flex-start',
+                  textWrapMode: 'nowrap',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
@@ -217,7 +259,11 @@ export default function SelectExperimentMenu({
               />
             </div>
           )}
-          <Menu className="select-experiment-menu" variant="plain">
+          <Menu
+            className="select-experiment-menu"
+            variant="plain"
+            sx={{ width: 170, overflow: 'hidden' }}
+          >
             {data &&
               data.map((experiment: any) => {
                 return (
@@ -246,14 +292,19 @@ export default function SelectExperimentMenu({
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
               <ListItemDecorator>
-                <PlusCircleIcon />
+                <PlusCircleIcon strokeWidth={1} />
               </ListItemDecorator>
               New
             </MenuItem>
           </Menu>
         </Dropdown>
       </FormControl>
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <RecipesModal
+        modalOpen={modalOpen && DEV_MODE}
+        setModalOpen={setModalOpen}
+        createNewExperiment={createNewExperiment}
+      />
+      <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
         <ModalDialog
           aria-labelledby="basic-modal-dialog-title"
           aria-describedby="basic-modal-dialog-description"
@@ -272,14 +323,7 @@ export default function SelectExperimentMenu({
             onSubmit={async (event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
               const form = new FormData(event.target);
-              // const formJson = Object.fromEntries((formData as any).entries());
-              // alert(JSON.stringify(formJson));
-              const name = form.get('name');
-              const response = await fetch(chatAPI.CREATE_EXPERIMENT_URL(name));
-              const newId = await response.json();
-              setExperimentId(newId);
-              createHandleClose(newId);
-              mutate();
+              createNewExperiment(form.get('name') as string);
               setModalOpen(false);
             }}
           >

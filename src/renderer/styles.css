@@ -214,6 +214,7 @@ textarea {
   background: var(--joy-palette-primary-400);
 }
 
+.dynamic-plugin-form .MuiInput-root,
 .dynamic-plugin-form select {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -223,7 +224,7 @@ textarea {
   border-radius: 3px;
   line-height: 1.5rem;
   height: 2rem;
-  background: #fff;
+  background: var(--joy-palette-background-level1);
   min-width: 200px;
   margin: 0 5px 5px 0;
   font-size: 14px;
@@ -281,8 +282,20 @@ path.react-flow__edge-path {
   stroke-width: 2;
 }
 
+.react-flow__node-customNode {
+  border: 2px solid var(--joy-palette-primary-outlinedBorder);
+  border-radius: 8px;
+}
+
+.react-flow__node-customNode .custom-node {
+  border: 1px solid white;
+  border-radius: 6px;
+}
+
+
 .custom-node-delete-button {
   opacity: 0.0;
+  z-index: 100;
 }
 
 .react-flow__node-customNode:hover .custom-node-delete-button {
@@ -292,8 +305,8 @@ path.react-flow__edge-path {
   border: 1.5px solid rgb(156, 144, 144);
   height: 14px;
   width: 14px;
-  top: -5px;
-  right: -5px;
+  top: 3px;
+  right: 3px;
   padding-left: 0.5px;
   cursor: 'pointer';
   display: flex;
