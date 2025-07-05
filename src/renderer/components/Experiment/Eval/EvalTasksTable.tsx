@@ -13,6 +13,7 @@ import {
   Typography,
   Sheet,
 } from '@mui/joy';
+import { ReactElement, useState } from 'react';
 import {
   FileTextIcon,
   PlayIcon,
@@ -20,13 +21,19 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
 import useSWR from 'swr';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import EvalModal from './EvalModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function formatTemplateConfig(script_parameters): ReactElement {
+  // Safety check for valid input
+  if (!script_parameters || typeof script_parameters !== 'object') {
+    return <span>No configuration available</span>;
+  }
+
   // const c = JSON.parse(script_parameters);
 
   // Remove the author/full path from the model name for cleanliness
@@ -37,29 +44,42 @@ function formatTemplateConfig(script_parameters): ReactElement {
       ? script_parameters.predefined_tasks
       : '';
     if (script_parameters.tasks) {
-      try {
-        const tasksArray = JSON.parse(script_parameters.tasks);
-        if (Array.isArray(tasksArray)) {
-          if (predefined_tasks && predefined_tasks !== '') {
-            // Check if tasks array is empty
-            if (tasksArray.length === 0) {
-              // If tasks array is empty, return only the predefined tasks
-              return predefined_tasks;
+      // Check if tasks is a string (comma-separated values)
+      if (typeof script_parameters.tasks === 'string') {
+        // Try to parse as JSON first
+        try {
+          const tasksArray = SafeJSONParse(script_parameters.tasks, '');
+          if (Array.isArray(tasksArray)) {
+            if (predefined_tasks && predefined_tasks !== '') {
+              // Check if tasks array is empty
+              if (tasksArray.length === 0) {
+                // If tasks array is empty, return only the predefined tasks
+                return predefined_tasks;
+              }
+              // If tasks array is not empty, join the tasks with the predefined tasks
+              // and return the result
+              return (
+                tasksArray.map((task) => task.name).join(', ') +
+                ',' +
+                predefined_tasks
+              );
             }
-            // If tasks array is not empty, join the tasks with the predefined tasks
-            // and return the result
-            return (
-              tasksArray.map((task) => task.name).join(', ') +
-              ',' +
-              predefined_tasks
-            );
+            // If predefined_tasks is empty, just return the tasks
+            return tasksArray.map((task) => task.name).join(', ');
           }
-          // If predefined_tasks is empty, just return the tasks
-          return tasksArray.map((task) => task.name).join(', ');
+        } catch (error) {
+          // Not valid JSON, treat as comma-separated string
         }
-      } catch (error) {
-        // Invalid JSON; fall back to the original value
+
+        // Handle as comma-separated string
+        const taskString = script_parameters.tasks.trim();
+        if (predefined_tasks && predefined_tasks !== '') {
+          return taskString + ',' + predefined_tasks;
+        }
+        return taskString;
       }
+
+      // If tasks is not a string, fall back to original behavior
       return script_parameters.tasks + predefined_tasks;
     }
     return script_parameters.tasks + predefined_tasks;
@@ -122,6 +142,8 @@ export default function EvalTasksTable({ experimentInfo }) {
       ),
     fetcher,
   );
+
+  const analytics = useAnalytics();
   // eslint-disable-next-line react/no-unstable-nested-components
   function FilteredPlugins({ plugins, type }) {
     const filteredPlugins = plugins?.filter((row) => row.evalsType === type);
@@ -248,7 +270,9 @@ export default function EvalTasksTable({ experimentInfo }) {
                     {evaluations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(evaluations.config))}
+                    {formatTemplateConfig(
+                      SafeJSONParse(evaluations.config, {}),
+                    )}
                     {/* {evaluations?.script_parameters?.task}&nbsp; */}
                     {/* <FileTextIcon size={14} /> */}
                   </td>
@@ -262,7 +286,14 @@ export default function EvalTasksTable({ experimentInfo }) {
                         startDecorator={<PlayIcon />}
                         variant="soft"
                         color="success"
-                        onClick={async () => evaluationRun(evaluations.id)}
+                        onClick={async () => {
+                          // Track the event with analytics
+                          analytics.track('Task Queued', {
+                            task_type: 'EVAL',
+                            plugin_name: evaluations.plugin,
+                          });
+                          evaluationRun(evaluations.id);
+                        }}
                       >
                         Queue
                       </Button>

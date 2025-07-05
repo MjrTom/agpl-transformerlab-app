@@ -36,6 +36,7 @@ import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
+import { useNotification } from '../../../Shared/NotificationSystem';
 
 function ShowCode({ code }) {
   const config = code?.config;
@@ -67,13 +68,19 @@ export default function WorkflowList({ experimentInfo }) {
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
+  const { addNotification } = useNotification();
 
   const {
     data: workflowsData,
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+  } = useSWR<Workflow[]>(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
+      : null,
+    fetcher,
+  );
 
   // select the first workflow available:
   useEffect(() => {
@@ -84,14 +91,36 @@ export default function WorkflowList({ experimentInfo }) {
     }
   }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
-  const workflows = workflowsData;
+  const workflows = Array.isArray(workflowsData) ? workflowsData : [];
 
   const selectedWorkflow = workflows?.find(
     (workflow) => workflow.id === selectedWorkflowId,
   );
 
   async function runWorkflow(workflowId: string) {
-    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id),
+      );
+
+      if (response.ok) {
+        addNotification({
+          type: 'success',
+          message:
+            'Your workflow has started! Navigate to the runs page to view its progress.',
+        });
+      } else {
+        addNotification({
+          type: 'danger',
+          message: 'Failed to start workflow. Please try again.',
+        });
+      }
+    } catch (error) {
+      addNotification({
+        type: 'danger',
+        message: `Failed to start workflow with error: ${error}`,
+      });
+    }
   }
   return (
     <>
@@ -220,6 +249,7 @@ export default function WorkflowList({ experimentInfo }) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
+                              experimentInfo.id,
                             ),
                           );
                           mutateWorkflows();
@@ -254,6 +284,7 @@ export default function WorkflowList({ experimentInfo }) {
                   selectedWorkflow={selectedWorkflow}
                   setNewNodeModalOpen={setNewNodeflowModalOpen}
                   mutateWorkflows={mutateWorkflows}
+                  experimentInfo={experimentInfo}
                 />
               )
             ) : (

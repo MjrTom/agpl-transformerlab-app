@@ -12,6 +12,7 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
+import { ReactElement, useState } from 'react';
 import {
   FileTextIcon,
   PlayIcon,
@@ -19,49 +20,49 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
 import useSWR from 'swr';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import GenerateModal from './GenerateModal';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listGenerations(generationString) {
-  let result = [];
-  if (generationString) {
-    result = JSON.parse(generationString);
-  }
-  return result;
+  return SafeJSONParse(generationString, []);
 }
 
-function formatTemplateConfig(script_parameters): ReactElement {
-  // const c = JSON.parse(script_parameters);
-
-  // Remove the author/full path from the model name for cleanliness
-  // const short_model_name = c.model_name.split('/').pop();
-  // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters?.generation_type;
-  let docs_file_name_actual = '';
-  // Only keep the first 3 words of the main task
-
-  // Set docs_file_name as script parameters docs or N/A depending upon main task and if it has the words 'docs'  in it
-  const docs_file_name =
-    main_task && main_task.toLowerCase().includes('docs')
-      ? script_parameters.docs || 'N/A'
-      : 'N/A';
-  const is_docs = docs_file_name !== 'N/A';
-  if (is_docs) {
-    docs_file_name_actual = script_parameters.docs.split('/').pop();
+function formatTemplateConfig(scriptParameters): ReactElement {
+  // Safety check for valid input
+  if (!scriptParameters || typeof scriptParameters !== 'object') {
+    return <span>No configuration available</span>;
   }
-  const generation_model = script_parameters?.generation_model
-    ? script_parameters.generation_model
-    : 'N/A';
+
+  const mainTask = scriptParameters?.generation_type;
+  let docsFileNameActual = '';
+
+  const docsFileName =
+    mainTask && mainTask.toLowerCase().includes('docs')
+      ? scriptParameters.docs || 'N/A'
+      : 'N/A';
+  const isDocs = docsFileName !== 'N/A';
+  if (isDocs) {
+    docsFileNameActual = scriptParameters.docs.split('/').pop();
+  }
+
+  const rawModel = scriptParameters?.generation_model;
+  const useFallback = !rawModel || rawModel === 'N/A' || rawModel === 'local';
+
+  const generationModel = useFallback
+    ? scriptParameters.model_name || 'N/A'
+    : rawModel;
 
   return (
     <>
-      <b>Type:</b> {main_task} <br />
-      <b>Model:</b> {generation_model} <br />
-      {is_docs && (
+      <b>Type:</b> {mainTask} <br />
+      <b>Model:</b> {generationModel} <br />
+      {isDocs && (
         <>
-          <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
+          <b>Docs:</b> {docsFileNameActual} <FileTextIcon size={14} />
           <br />
         </>
       )}
@@ -103,6 +104,8 @@ export default function GenerateTasksTable({
       ),
     fetcher,
   );
+
+  const analytics = useAnalytics();
 
   function openModalForPLugin(pluginId) {
     setCurrentPlugin(pluginId);
@@ -191,7 +194,9 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(generations.config))}
+                    {formatTemplateConfig(
+                      SafeJSONParse(generations.config, {}),
+                    )}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
@@ -203,9 +208,13 @@ export default function GenerateTasksTable({
                         startDecorator={<PlayIcon />}
                         variant="soft"
                         color="success"
-                        onClick={async () =>
-                          await generationRun(generations.id)
-                        }
+                        onClick={async () => {
+                          analytics.track('Task Queued', {
+                            task_type: 'GENERATE',
+                            plugin_name: generations.plugin,
+                          });
+                          await generationRun(generations.id);
+                        }}
                       >
                         Queue
                       </Button>

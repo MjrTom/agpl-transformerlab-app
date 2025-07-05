@@ -22,10 +22,11 @@ export default function DataStore() {
   const [searchText, setSearchText] = useState('');
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Gallery(),
-    fetcher
+    fetcher,
   );
 
-  if (error) return 'Failed to load datasets from the gallery. Please check your connection or try again later.';
+  if (error)
+    return 'Failed to load datasets from the gallery. Please check your connection or try again later.';
   if (isLoading) return <LinearProgress />;
   return (
     <Sheet
@@ -78,9 +79,10 @@ export default function DataStore() {
           {data &&
             data.data &&
             filterByFilters(data.data, searchText).map((row) => (
-              <Grid xs={4}>
+              <Grid xs={4} key={row.huggingfacerepo}>
                 <DatasetCard
-                  name={row.name}
+                  name={row.huggingfacerepo}
+                  friendlyName={row.name}
                   size={row.size}
                   description={row.description}
                   repo={row.huggingfacerepo}

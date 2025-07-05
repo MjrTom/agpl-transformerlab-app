@@ -15,6 +15,10 @@ import {
   Tab,
   TabPanel,
   Input,
+  Textarea,
+  FormControl,
+  FormLabel,
+  FormHelperText,
 } from '@mui/joy';
 import {
   Trash2Icon,
@@ -31,6 +35,7 @@ import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
@@ -327,11 +332,19 @@ export default function CurrentFoundationInfo({
     });
   };
 
+  const { data, error, isLoading } = useAPI(
+    'models',
+    ['chatTemplate'],
+    { modelName: huggingfaceId },
+    { enabled: !!huggingfaceId },
+  );
+  // console.log('data', data);
+
   return (
     <Sheet
       sx={{
         height: '100%',
-        display: 'flex',
+        //display: 'flex',
         flexDirection: 'column',
         paddingBottom: '20px',
       }}
@@ -347,13 +360,20 @@ export default function CurrentFoundationInfo({
         aria-label="Model tabs"
         value={activeTab}
         onChange={(event, value) => setActiveTab(value)}
-        sx={{ mt: 2, overflow: 'hidden' }}
+        sx={{
+          mt: 2,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          flexGrow: 1,
+        }}
       >
         <TabList>
           <Tab>Overview</Tab>
           <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
+          <Tab>Chat Template</Tab>
         </TabList>
 
         {/* Overview Tab */}
@@ -453,7 +473,16 @@ export default function CurrentFoundationInfo({
         </TabPanel>
 
         {/* Adaptors Tab */}
-        <TabPanel value={2} sx={{ p: 2 }}>
+        <TabPanel
+          value={2}
+          sx={{
+            p: 1,
+            height: '100%',
+            overflowY: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <Typography level="title-lg" marginBottom={2}>
             Download an Adapter from HuggingFace 🤗
           </Typography>
@@ -491,9 +520,9 @@ export default function CurrentFoundationInfo({
           )}
 
           {/* Search bar */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
             <Input
-              placeholder="Enter Adapter ID here"
+              placeholder="Enter Adapter ID"
               value={adapterSearchText}
               onChange={(e) => setAdapterSearchText(e.target.value)}
               onKeyDown={(e) => {
@@ -507,11 +536,11 @@ export default function CurrentFoundationInfo({
           </Box>
 
           {/* Installed adapters section */}
-          <Typography level="title-md" marginTop={4}>
+          <Typography level="title-lg" mt={1}>
             Available Adaptors
           </Typography>
           <Box sx={{ maxHeight: 400, overflowY: 'auto', pr: 1 }}>
-            <Stack direction="column" spacing={2}>
+            <Stack direction="column" gap={1}>
               {peftData && peftData.length === 0 && (
                 <Typography level="body-sm" color="neutral">
                   No adaptors installed. Train one!
@@ -523,7 +552,7 @@ export default function CurrentFoundationInfo({
                     key={peft}
                     variant="outlined"
                     sx={{
-                      p: 2,
+                      p: 1,
                       borderRadius: 'sm',
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -689,6 +718,36 @@ export default function CurrentFoundationInfo({
               )}
             </Box>
           </Box>
+        </TabPanel>
+
+        {/* Chat Template Tab */}
+        <TabPanel
+          value={4}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+            maxHeight: '500px',
+          }}
+        >
+          <FormControl sx={{ mb: 2 }}>
+            <textarea rows={11} value={data?.data ?? ''} readOnly />
+            <FormHelperText>
+              This template defines how chat messages are formatted as model
+              input during training or inference. It uses Jinja2 syntax.
+            </FormHelperText>
+          </FormControl>
+
+          {error && (
+            <Typography level="body-sm" color="danger" mt={1}>
+              Error loading template: {data?.message}
+            </Typography>
+          )}
+
+          {isLoading && (
+            <Typography level="body-sm" color="neutral" mt={1}>
+              Loading chat template...
+            </Typography>
+          )}
         </TabPanel>
       </Tabs>
     </Sheet>

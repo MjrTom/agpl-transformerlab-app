@@ -70,7 +70,7 @@ export default function ExperimentNotes({ experimentInfo }) {
       },
     )
       .then(() => {
-        mutate(value);
+        mutate();
         setIsEditing(false);
         return true;
       })
@@ -100,19 +100,18 @@ export default function ExperimentNotes({ experimentInfo }) {
         mb: 3,
       }}
     >
-      <Typography level="h1">Experiment Notes</Typography>
+      <Typography level="h3">Experiment Notes</Typography>
       {!isEditing && (
         <Sheet
           color="neutral"
-          variant="outlined"
+          variant="soft"
           sx={{
             display: 'flex',
             flexDirection: 'column',
             mt: 1,
             height: '100%',
-            p: 3,
-            boxShadow:
-              'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
+            px: 3,
+            overflow: 'auto',
           }}
           className="editableSheet"
         >
@@ -125,24 +124,8 @@ export default function ExperimentNotes({ experimentInfo }) {
               {data}
             </Markdown>
           </Box>
-          <Button
-            onClick={() => {
-              setIsEditing(true);
-            }}
-            sx={{
-              mt: 1,
-              ml: 'auto',
-              position: 'absolute',
-            }}
-            variant="solid"
-            className="hoverEditButton"
-            startDecorator={<PencilIcon size="18px" />}
-          >
-            Edit
-          </Button>
         </Sheet>
       )}
-
       {isEditing && (
         <Sheet
           sx={{
@@ -186,35 +169,50 @@ export default function ExperimentNotes({ experimentInfo }) {
               onMount={handleEditorDidMount}
             />
           </Sheet>
-          <Box
-            display="flex"
-            flexDirection="row"
-            gap={1}
-            sx={{
-              width: '100%',
-              justifyContent: 'flex-end',
-              alignContent: 'center',
-              mt: 1,
-            }}
-          >
+        </Sheet>
+      )}
+      <Box
+        display="flex"
+        flexDirection="row"
+        gap={1}
+        sx={{
+          width: '100%',
+          justifyContent: 'flex-end',
+          alignContent: 'center',
+          mt: 1,
+        }}
+      >
+        {isEditing ? (
+          <>
             <Button
               onClick={() => {
                 saveValue();
               }}
-              sx={{}}
+              color="success"
             >
               Save
             </Button>
             <Button
-              variant="soft"
-              sx={{ ml: 1 }}
+              variant="plain"
+              color="danger"
               onClick={() => setIsEditing(false)}
             >
               Cancel
             </Button>
-          </Box>
-        </Sheet>
-      )}
+          </>
+        ) : (
+          <Button
+            onClick={() => {
+              setIsEditing(true);
+            }}
+            color="primary"
+            variant="solid"
+            startDecorator={<PencilIcon size="18px" />}
+          >
+            Edit
+          </Button>
+        )}
+      </Box>
     </Sheet>
   );
 }

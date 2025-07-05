@@ -59,10 +59,12 @@ export default function Chat({
   mode,
   setMode,
   supports,
+  chatHistory,
+  setChatHistory,
 }) {
   const { models } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
-  const [chats, setChats] = React.useState([]);
+  const [chats, setChats] = [chatHistory, setChatHistory];
   const [isThinking, setIsThinking] = React.useState(false);
   const [generationParameters, setGenerationParameters] = React.useState({
     temperature: 0.7,
@@ -341,6 +343,7 @@ export default function Chat({
       systemMessage,
       generationParameters?.stop_str,
       image,
+      generationParameters?.minP,
     );
 
     clearTimeout(timeoutId);
@@ -505,6 +508,7 @@ export default function Chat({
       systemMessage,
       generationParameters?.stop_str,
       image,
+      generationParameters?.minP,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -584,6 +588,7 @@ export default function Chat({
             systemMessage,
             generationParameters?.stop_str,
             image,
+            generationParameters?.minP,
           );
         }
       }
