@@ -198,7 +198,7 @@
     "jest-environment-jsdom": "^29.5.0",
     "mini-css-extract-plugin": "^2.9.2",
     "orval": "^7.9.0",
-    "prettier": "^3.5.3",
+    "prettier": "^3.6.2",
     "react-refresh": "^0.17.0",
     "react-test-renderer": "^19.1.0",
     "rimraf": "^6.0.1",
