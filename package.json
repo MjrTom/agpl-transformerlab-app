@@ -146,7 +146,7 @@
     "tail": "^2.2.6",
     "three": "^0.178.0",
     "tree-kill": "^1.2.2",
-    "use-debounce": "^10.0.4",
+    "use-debounce": "^10.0.5",
     "validator": "^13.15.15"
   },
   "devDependencies": {
