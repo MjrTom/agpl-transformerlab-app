@@ -137,7 +137,7 @@
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.6.3",
     "react-sparklines": "^1.7.0",
-    "react-syntax-highlighter": "^15.6.1",
+    "react-syntax-highlighter": "github:MjrTom/react-syntax-highlighter",
     "read-config-ng": "^3.0.5",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^3.0.1",
