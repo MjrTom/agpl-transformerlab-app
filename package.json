@@ -135,7 +135,7 @@
     "react-dropzone": "^14.3.8",
     "react-icons": "^5.5.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.6.3",
+    "react-router-dom": "^7.7.1",
     "react-sparklines": "^1.7.0",
     "react-syntax-highlighter": "github:MjrTom/react-syntax-highlighter",
     "read-config-ng": "^3.0.5",
