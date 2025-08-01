@@ -200,7 +200,7 @@
     "orval": "^7.10.0",
     "prettier": "^3.6.2",
     "react-refresh": "^0.17.0",
-    "react-test-renderer": "^19.1.0",
+    "react-test-renderer": "^19.1.1",
     "rimraf": "^6.0.1",
     "sass": "^1.89.2",
     "sass-loader": "^16.0.5",
