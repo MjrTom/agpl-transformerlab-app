@@ -21,6 +21,7 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
+import TaskLibrary from './TaskLibrary/TaskLibrary';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
@@ -44,6 +45,7 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
+import TaskLibrary from './TaskLibrary/TaskLibrary';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -79,7 +81,10 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({ setLogsDrawerOpen = null }) {
+export default function MainAppPanel({
+  setLogsDrawerOpen = null,
+  gpuOrchestrationServer = '',
+}) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
@@ -394,14 +399,59 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
+        <Route path="/task_library" element={<TaskLibrary />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
-        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
-        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
-        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
-        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
-        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
-        <Route path="/data" element={<Data />} />
+        <Route
+          path="/zoo"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/local"
+          element={
+            <ModelZoo
+              tab="local"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/generated"
+          element={
+            <ModelZoo
+              tab="generated"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/store"
+          element={
+            <ModelZoo
+              tab="store"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/groups"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/data"
+          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
+        />
+        <Route path="/task_library" element={<TaskLibrary />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
