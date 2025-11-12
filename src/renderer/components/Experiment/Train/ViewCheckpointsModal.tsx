@@ -22,7 +22,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
   const handleRestartFromCheckpoint = (checkpoint) => {
     // TODO: Implement restart functionality
-    console.log('Restarting from checkpoint:', checkpoint);
+    alert('Not yet implemented');
   };
 
   let noCheckpoints = false;
@@ -30,6 +30,9 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   if (!checkpointsLoading && data?.checkpoints?.length === 0) {
     noCheckpoints = true;
   }
+
+  const hasDate = !!data?.checkpoints?.some((cp) => cp.date);
+  const hasSize = !!data?.checkpoints?.some((cp) => cp.size);
 
   return (
     <Modal open={open} onClose={() => onClose()}>
@@ -72,8 +75,8 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                     <tr>
                       <th width="50px">#</th>
                       <th>Checkpoint</th>
-                      <th>Date</th>
-                      <th width="100px">Size</th>
+                      {hasDate && <th>Date</th>}
+                      {hasSize && <th width="100px">Size</th>}
                       <th style={{ textAlign: 'right' }}>&nbsp;</th>
                     </tr>
                   </thead>
@@ -90,10 +93,22 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             {checkpoint.filename}
                           </Typography>
                         </td>
-                        <td>{new Date(checkpoint.date).toLocaleString()}</td>
-                        <td>{formatBytes(checkpoint.size)}</td>
+                        {hasDate && (
+                          <td>
+                            {checkpoint.date
+                              ? new Date(checkpoint.date).toLocaleString()
+                              : '-'}
+                          </td>
+                        )}
+                        {hasSize && (
+                          <td>
+                            {checkpoint.size
+                              ? formatBytes(checkpoint.size)
+                              : '-'}
+                          </td>
+                        )}
                         <td style={{ textAlign: 'right' }}>
-                          {/* <Button
+                          <Button
                             size="sm"
                             variant="outlined"
                             onClick={() =>
@@ -102,7 +117,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             startDecorator={<PlayIcon />}
                           >
                             Restart training from here
-                          </Button> */}
+                          </Button>
                         </td>
                       </tr>
                     ))}

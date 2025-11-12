@@ -9,7 +9,8 @@ import {
   Table,
   Typography,
   Option,
-  Button,
+  IconButton,
+  Skeleton, // added Skeleton
 } from '@mui/joy';
 import {
   ArrowRightToLineIcon,
@@ -20,6 +21,7 @@ import {
   StoreIcon,
   Trash2Icon,
   ImageIcon,
+  RotateCcwIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -35,6 +37,7 @@ type Order = 'asc' | 'desc';
 
 const LocalModelsTable = ({
   models,
+  isLoading,
   mutateModels,
   setFoundation,
   setAdaptor,
@@ -90,6 +93,66 @@ const LocalModelsTable = ({
     </>
   );
 
+  // render loading skeleton when loading
+  if (isLoading) {
+    return (
+      <>
+        <Box
+          className="SearchAndFilters-tabletUp"
+          sx={{
+            borderRadius: 'sm',
+            mt: 1,
+            pb: 2,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            '& > *': {
+              minWidth: {
+                xs: '120px',
+                md: '160px',
+              },
+            },
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            sx={{ flex: 1, height: 32, borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+          />
+        </Box>
+
+        <Sheet
+          variant="outlined"
+          sx={{
+            width: '100%',
+            borderRadius: 'md',
+            minHeight: 0,
+            display: 'flex',
+            overflow: 'auto',
+            p: 2,
+          }}
+        >
+          <Box sx={{ width: '100%' }}>
+            {[...Array(6)].map((_, idx) => (
+              <Skeleton
+                key={idx}
+                variant="rectangular"
+                sx={{ height: 48, borderRadius: 'sm', mb: 1 }}
+              />
+            ))}
+          </Box>
+        </Sheet>
+      </>
+    );
+  }
+
   return (
     <>
       <Box
@@ -119,6 +182,20 @@ const LocalModelsTable = ({
         </FormControl>
 
         {renderFilters()}
+
+        <FormControl size="sm">
+          <FormLabel>&nbsp;</FormLabel>
+          <IconButton
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            onClick={() => mutateModels()}
+            aria-label="Reload models"
+          >
+            <RotateCcwIcon size="18px" />
+            &nbsp; Refresh Models
+          </IconButton>
+        </FormControl>
       </Box>
       <Sheet
         className=""
@@ -296,28 +373,91 @@ const LocalModelsTable = ({
                                       "'?",
                                   )
                                 ) {
-                                  if (
-                                    confirm(
-                                      "Do you want to delete model '" +
-                                        row.model_id +
-                                        "' from your local Huggingface cache as well (if present) ?",
-                                    )
-                                  ) {
-                                    await fetch(
-                                      chatAPI.Endpoints.Models.Delete(
-                                        row.model_id,
-                                        true,
-                                      ),
-                                    );
-                                    mutateModels();
-                                  } else {
-                                    await fetch(
-                                      chatAPI.Endpoints.Models.Delete(
-                                        row.model_id,
-                                        false,
-                                      ),
-                                    );
-                                    mutateModels();
+                                  try {
+                                    if (
+                                      confirm(
+                                        "Do you want to delete model '" +
+                                          row.model_id +
+                                          "' from your local Huggingface cache as well (if present) ?",
+                                      )
+                                    ) {
+                                      await fetch(
+                                        chatAPI.Endpoints.Models.Delete(
+                                          row.model_id,
+                                          true,
+                                        ),
+                                      );
+                                    } else {
+                                      await fetch(
+                                        chatAPI.Endpoints.Models.Delete(
+                                          row.model_id,
+                                          false,
+                                        ),
+                                      );
+                                    }
+
+                                    await mutateModels();
+
+                                    try {
+                                      const currentFoundation =
+                                        experimentInfo?.config?.foundation ||
+                                        '';
+                                      const currentFilename =
+                                        experimentInfo?.config
+                                          ?.foundation_filename || '';
+                                      const foundationId = currentFoundation
+                                        ? String(currentFoundation)
+                                            .split('/')
+                                            .slice(-1)[0]
+                                        : '';
+
+                                      const deletedMatchesFoundation =
+                                        foundationId === row.model_id ||
+                                        currentFoundation === row.model_id ||
+                                        currentFilename === row.model_id ||
+                                        currentFilename === row.local_path ||
+                                        currentFoundation === row.local_path;
+
+                                      if (
+                                        deletedMatchesFoundation &&
+                                        experimentInfo?.id
+                                      ) {
+                                        // optimistic clear in UI
+                                        if (
+                                          typeof setFoundation === 'function'
+                                        ) {
+                                          setFoundation(null);
+                                        }
+
+                                        // batch-update backend to clear all foundation-related fields
+                                        await chatAPI.authenticatedFetch(
+                                          chatAPI.Endpoints.Experiment.UpdateConfigs(
+                                            experimentInfo.id,
+                                          ),
+                                          {
+                                            method: 'POST',
+                                            headers: {
+                                              'Content-Type':
+                                                'application/json',
+                                            },
+                                            body: JSON.stringify({
+                                              foundation: '',
+                                              foundation_filename: '',
+                                              foundation_model_architecture: '',
+                                              inferenceParams: '{}',
+                                            }),
+                                          },
+                                        );
+                                      }
+                                    } catch (err) {
+                                      console.error(
+                                        'Error clearing foundation after model deletion',
+                                        err,
+                                      );
+                                    }
+                                  } catch (e) {
+                                    console.error('Failed to delete model', e);
+                                    alert('Failed to delete model');
                                   }
                                 }
                               }}
