@@ -45,10 +45,17 @@ from transformerlab.services import job_service
 from transformerlab.services import quota_service
 from transformerlab.services.task_service import task_service
 from transformerlab.services.local_provider_queue import enqueue_local_launch
-from transformerlab.services.cache_service import cache
+
 from lab import storage
 from lab.storage import STORAGE_PROVIDER
-from lab.dirs import get_workspace_dir, get_local_provider_job_dir, get_job_dir, set_organization_id, get_task_dir
+from lab.dirs import (
+    get_workspace_dir,
+    get_local_provider_job_dir,
+    get_job_dir,
+    set_organization_id,
+    get_task_dir,
+    get_local_provider_root,
+)
 from lab.job_status import JobStatus
 from transformerlab.shared.github_utils import (
     read_github_pat_from_workspace,
@@ -265,13 +272,11 @@ async def create_provider(
             user_id_str = str(user.id)
             provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
-            set_organization_id(team_id)
+            status_path = _get_provider_setup_status_path(team_id, str(provider.id))
             try:
-                workspace_dir = await get_workspace_dir()
-            finally:
-                set_organization_id(None)
-
-            status_path = _get_provider_setup_status_path(workspace_dir, team_id, str(provider.id))
+                status_path.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                logger.exception("Failed to ensure parent directory for provider setup status %s", status_path)
             try:
                 status_path.write_text(
                     json.dumps(
@@ -1144,12 +1149,11 @@ async def _create_sweep_parent_job(
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
     }
 
-    for key, value in parent_job_data.items():
-        if value is not None:
-            await job_service.job_update_job_data_insert_key_value(parent_job_id, key, value, request.experiment_id)
-
-    # Ensure experiment job lists reflect the new parent sweep job.
-    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
+    parent_job_updates = {key: value for key, value in parent_job_data.items() if value is not None}
+    if parent_job_updates:
+        await job_service.job_update_job_data_insert_key_values(
+            parent_job_id, parent_job_updates, request.experiment_id
+        )
 
     return parent_job_id
 
@@ -1263,6 +1267,11 @@ async def _launch_sweep_jobs(
                 if tfl_storage_uri:
                     env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
 
+                # For RunPod providers, ensure uv is available and configured to use
+                # the system Python so sweep runs can call `uv` directly.
+                if provider.type == ProviderType.RUNPOD.value:
+                    env_vars["UV_SYSTEM_PYTHON"] = "1"
+
                 # For local provider, set TFL_WORKSPACE_DIR so the lab SDK in the subprocess finds the job dir
                 if provider.type == ProviderType.LOCAL.value and team_id:
                     set_organization_id(team_id)
@@ -1329,6 +1338,11 @@ async def _launch_sweep_jobs(
                 if request.file_mounts is True and request.task_id:
                     setup_commands.append(COPY_FILE_MOUNTS_SETUP)
 
+                # Ensure uv is installed on RunPod sweeps as well so the run
+                # command can rely on it being present.
+                if provider.type == ProviderType.RUNPOD.value:
+                    setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
+
                 if request.github_repo_url:
                     workspace_dir = await get_workspace_dir()
                     github_pat = await read_github_pat_from_workspace(workspace_dir, user_id=user_id)
@@ -1391,11 +1405,11 @@ async def _launch_sweep_jobs(
                 if request.file_mounts is True and request.task_id:
                     child_job_data["task_id"] = request.task_id
 
-                for key, value in child_job_data.items():
-                    if value is not None:
-                        await job_service.job_update_job_data_insert_key_value(
-                            child_job_id, key, value, request.experiment_id
-                        )
+                child_job_updates = {key: value for key, value in child_job_data.items() if value is not None}
+                if child_job_updates:
+                    await job_service.job_update_job_data_insert_key_values(
+                        child_job_id, child_job_updates, request.experiment_id
+                    )
 
                 # Prepare cluster config
                 disk_size = None
@@ -1469,8 +1483,6 @@ async def _launch_sweep_jobs(
             )
 
             print(f"Completed launching {len(child_job_ids)} child jobs for sweep {parent_job_id}")
-            # Invalidate cached job lists now that all child jobs have been created.
-            await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
     finally:
         # Clear org context after background task completes
         if lab_set_org_id is not None:
@@ -1596,9 +1608,6 @@ async def launch_template_on_provider(
         experiment_id=request.experiment_id,
     )
 
-    # Ensure experiment job lists include the newly created REMOTE job.
-    await cache.invalidate("jobs", f"jobs:list:{request.experiment_id}")
-
     await job_service.job_update_launch_progress(
         job_id,
         request.experiment_id,
@@ -1694,6 +1703,12 @@ async def launch_template_on_provider(
     # This runs after AWS credentials are configured so we have access to any remote storage if needed.
     if provider.type != ProviderType.LOCAL.value:
         setup_commands.append("pip install -q transformerlab")
+
+    # For RunPod providers, ensure uv is available and configured to use the
+    # system Python. This allows user commands to invoke `uv` directly.
+    if provider.type == ProviderType.RUNPOD.value:
+        env_vars["UV_SYSTEM_PYTHON"] = "1"
+        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
 
     # If GitHub repo fields are missing, fall back to the stored task's fields.
     # This handles GitHub-sourced interactive tasks where the CLI/TUI doesn't
@@ -2438,9 +2453,6 @@ async def resume_from_checkpoint(
         type="REMOTE", status=initial_status, experiment_id=experimentId, job_data={}
     )
 
-    # Ensure experiment job lists include the resumed REMOTE job.
-    await cache.invalidate("jobs", f"jobs:list:{experimentId}")
-
     # Set parent_job_id and resumed_from_checkpoint in job_data
     await job_service.job_update_job_data_insert_key_value(new_job_id, "parent_job_id", job_id, experimentId)
     await job_service.job_update_job_data_insert_key_value(
@@ -2555,6 +2567,12 @@ async def resume_from_checkpoint(
             branch=job_data.get("github_branch"),
         )
         setup_commands.append(github_setup)
+
+    # For RunPod providers, ensure uv is available and configured to use
+    # the system Python so resumed jobs can call `uv` directly.
+    if provider.type == ProviderType.RUNPOD.value:
+        env_vars["UV_SYSTEM_PYTHON"] = "1"
+        setup_commands.append("curl -LsSf https://astral.sh/uv/install.sh | sh")
 
     # Add user-provided setup if any
     original_setup = job_data.get("setup")
@@ -2758,12 +2776,20 @@ async def list_clusters_detailed(
         raise HTTPException(status_code=500, detail="Failed to list clusters")
 
 
-def _get_provider_setup_status_path(workspace_dir: str, team_id: str, provider_id: str) -> Path:
-    """Return path to the transient local-provider-setup status file for this team/provider."""
+def _get_provider_setup_status_path(team_id: str, provider_id: str) -> Path:
+    """Return path to the transient local-provider-setup status file for this team/provider.
+
+    This is only used for LOCAL providers, so it should always live on the local filesystem
+    (not in workspace storage, which may be backed by S3).
+    """
     # Sanitize user-derived identifiers before using them in a file name
     safe_team = secure_filename(str(team_id).replace("/", "_")) or "team"
     safe_provider = secure_filename(str(provider_id).replace("/", "_")) or "provider"
-    return Path(workspace_dir) / f".local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    return (
+        Path(get_local_provider_root())
+        / "team_setup_logs"
+        / f"local_provider_setup_status_{safe_team}_{safe_provider}.json"
+    )
 
 
 async def _run_local_provider_setup_background(
@@ -2843,14 +2869,7 @@ async def setup_provider(
     user_id_str = str(user_and_team["user"].id)
     provider_instance = await get_provider_instance(provider, user_id=user_id_str, team_id=team_id)
 
-    # Determine workspace directory for this organization/team and compute status path.
-    set_organization_id(team_id)
-    try:
-        workspace_dir = await get_workspace_dir()
-    finally:
-        set_organization_id(None)
-
-    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    status_path = _get_provider_setup_status_path(team_id, provider_id)
     try:
         status_path.parent.mkdir(parents=True, exist_ok=True)
     except Exception:
@@ -2898,14 +2917,7 @@ async def get_setup_status(
     does not exist).
     """
     team_id = user_and_team["team_id"]
-
-    set_organization_id(team_id)
-    try:
-        workspace_dir = await get_workspace_dir()
-    finally:
-        set_organization_id(None)
-
-    status_path = _get_provider_setup_status_path(workspace_dir, team_id, provider_id)
+    status_path = _get_provider_setup_status_path(team_id, provider_id)
     if not status_path.exists():
         return {
             "status": "idle",
